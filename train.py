@@ -12,6 +12,9 @@ import os
 # 기본값: 로컬 ./mlruns/ 폴더에 저장
 mlflow.set_tracking_uri("http://192.168.2.81:30500")  # 원격 서버 사용시 MLflow 서버 주소
 
+# 새 experiment 생성 (NFS 경로 사용)
+mlflow.set_experiment("my-test-260128-HJ")
+
 ############################
 # mlflow.start_run()
 ############################
