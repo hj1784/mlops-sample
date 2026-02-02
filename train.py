@@ -28,6 +28,9 @@ mlflow.set_experiment("poc-train-1")
 # - with문 끝나면 자동으로 run 종료
 # - 저장 위치: ./mlruns/0/<run_id>/
 with mlflow.start_run():
+    # pipeline_run_id를 MLflow param으로 기록 (메트릭 폴링 연동용)
+    pipeline_run_id = os.environ.get("PIPELINE_RUN_ID", "unknown")
+    mlflow.log_param("pipeline_run_id", pipeline_run_id)
 
     # [가짜 학습 과정]
     print("🚀 Training started...")
