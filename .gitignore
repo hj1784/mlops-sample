@@ -1,0 +1,14 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# MLflow
+mlruns/
+mlflow.db
+
+# IDE
+.idea/
+
+# Model output
+model.txt

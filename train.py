@@ -1,5 +1,10 @@
 # train.py
+import sys
+import io
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
 import mlflow
+from mlflow.tracking import MlflowClient
 import os
 
 ########################################################
@@ -13,7 +18,7 @@ import os
 mlflow.set_tracking_uri("http://192.168.2.81:30500")  # 원격 서버 사용시 MLflow 서버 주소
 
 # 새 experiment 생성 (NFS 경로 사용)
-mlflow.set_experiment("my-test-260128-HJ")
+mlflow.set_experiment("poc-train-1")
 
 ############################
 # mlflow.start_run()
@@ -60,6 +65,49 @@ with mlflow.start_run():
     #
     # 참고: 실제 PyTorch 모델이면 mlflow.pytorch.log_model() 사용
     #       실제 Sklearn 모델이면 mlflow.sklearn.log_model() 사용
+    #       (단, log_model()은 서버가 MLflow 3.x 이상이어야 정상 동작)
     mlflow.log_artifact(model_path, artifact_path="model")
 
-    print("✅✅✅✅ training & logging done ✅✅✅✅")
+    ############################
+    # 모델 등록 (Model Registry)
+    ############################
+    # - 학습된 모델을 Model Registry에 등록
+    # - Staging 스테이지로 전환하여 배포 준비 상태로 설정
+    artifact_path = "model"
+    model_name = "test-model"
+
+    mlflow_run_id = mlflow.active_run().info.run_id
+    model_uri = f"runs:/{mlflow_run_id}/{artifact_path}"
+    print(f"[register_model] model_uri={model_uri}, name={model_name}")
+
+    # MlflowClient를 직접 사용 (클라이언트 3.x + 서버 2.x 호환성 문제 우회)
+    client = MlflowClient()
+
+    # 등록된 모델이 없으면 새로 생성
+    try:
+        client.get_registered_model(model_name)
+    except Exception:
+        client.create_registered_model(model_name)
+
+    # 모델 버전 생성
+    mv = client.create_model_version(
+        name=model_name,
+        source=model_uri,
+        run_id=mlflow_run_id,
+    )
+
+    ############################
+    # Staging 스테이지 전환
+    ############################
+    client.transition_model_version_stage(
+        name=model_name, version=mv.version,
+        stage="Staging", archive_existing_versions=False,
+    )
+
+    print(f"Model registered: {model_name} v{mv.version} -> Staging")
+    print("training & logging done")
+
+
+
+# logged-models API는 MLflow 3.x에서 추가된 기능이라 2.x 서버에서 404가 발생 -> log_model() 방식이 아닌 log_artifact + register_model 방식으로 사용
+# mlflow.register_model() 대신 MlflowClient().create_model_version()을 직접 사용
