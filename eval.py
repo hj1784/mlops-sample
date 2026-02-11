@@ -1,25 +1,35 @@
 # eval.py
+import argparse
 import json
-from pathlib import Path
+import os
+import pickle
 
 ########################################################
 # 평가 모델
 ########################################################
 
-model = open("model.txt").read()
+def evaluate(model_path: str) -> dict:
+    print(f"[Eval] 모델 경로: {model_path}")
 
-# 그냥 임의 규칙
-passed = "MODEL_VERSION" in model
+    if not os.path.isfile(model_path):
+        print(f"[Eval] WARNING: 모델 파일 없음 - {model_path}, 더미 평가 수행")
+        return {"accuracy": 0.0, "loss": 999.0, "pass": False}
 
-result = {
-    "pass": passed,
-    "score": 1.0 if passed else 0.0
-}
+    with open(model_path, "rb") as f:
+        model = pickle.load(f)
+    print(f"[Eval] 모델 로드 완료: {model}")
 
-OUT_DIR = Path("/eval_out")
-OUT_DIR.mkdir(exist_ok=True)
+    acc = float(model.get("accuracy", 0.0))
+    loss = float(model.get("loss", 999.0))
+    passed = acc >= 0.5
 
-with open(OUT_DIR / "results.json", "w") as f:
-    json.dump(result, f)
+    return {"accuracy": acc, "loss": loss, "pass": passed}
 
-print("🎁🎁🎁🎁🎁🎁🎁🎁🎁🎁🎁🎁🎁 EVAL RESULT:", result)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", type=str, default="model/hj-sample.pkl")
+    args = parser.parse_args()
+
+    result = evaluate(args.model)
+    print(json.dumps(result))
